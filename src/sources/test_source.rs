@@ -71,3 +71,9 @@ impl TestSource {
         self.last_image.lock().unwrap().take()
     }
 }
+
+impl Drop for TestSource {
+    fn drop(&mut self) {
+        self.pipeline.set_state(gst::State::Null).unwrap();
+    }
+}
