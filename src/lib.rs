@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 mod core;
+mod errors;
 mod image;
 mod sources;
 

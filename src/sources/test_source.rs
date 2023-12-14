@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
 use crate::core::appsink::pull_appsink_image;
+use crate::errors::{Error, GstMissingElementError};
 use crate::image::Image;
 
 #[pyclass]
@@ -14,20 +15,20 @@ pub struct TestSource {
 #[pymethods]
 impl TestSource {
     #[new]
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, Error> {
         gst::init().unwrap();
 
         let pipeline = gst::Pipeline::new();
 
         let src = gst::ElementFactory::make("videotestsrc")
             .build()
-            .expect("Fail create videotestsrc");
+            .map_err(|_| GstMissingElementError("videotestsrc"))?;
         let videoconvert = gst::ElementFactory::make("videoconvert")
             .build()
-            .expect("Fail create videoconvert");
+            .map_err(|_| GstMissingElementError("videoconvert"))?;
         let capsfilter = gst::ElementFactory::make("capsfilter")
             .build()
-            .expect("Fail create capsfilter");
+            .map_err(|_| GstMissingElementError("capsfilter"))?;
         let appsink = gst_app::AppSink::builder()
             .max_buffers(1)
             .drop(true)
@@ -38,12 +39,10 @@ impl TestSource {
             .build();
         capsfilter.set_property("caps", &caps);
 
-        pipeline
-            .add_many([&src, &videoconvert, &capsfilter, appsink.upcast_ref()])
-            .unwrap();
-        src.link(&videoconvert).unwrap();
-        videoconvert.link(&capsfilter).unwrap();
-        capsfilter.link(&appsink).unwrap();
+        pipeline.add_many([&src, &videoconvert, &capsfilter, appsink.upcast_ref()])?;
+        src.link(&videoconvert)?;
+        videoconvert.link(&capsfilter)?;
+        capsfilter.link(&appsink)?;
 
         let last_image = Arc::new(Mutex::new(None));
 
@@ -59,12 +58,12 @@ impl TestSource {
                 .build(),
         );
 
-        pipeline.set_state(gst::State::Playing).unwrap();
+        pipeline.set_state(gst::State::Playing)?;
 
-        Self {
+        Ok(Self {
             pipeline,
             last_image,
-        }
+        })
     }
 
     fn read(&mut self) -> Option<Image> {
@@ -74,6 +73,8 @@ impl TestSource {
 
 impl Drop for TestSource {
     fn drop(&mut self) {
-        self.pipeline.set_state(gst::State::Null).unwrap();
+        self.pipeline
+            .set_state(gst::State::Null)
+            .expect("Cant set pipeline state to null");
     }
 }
