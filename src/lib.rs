@@ -14,7 +14,10 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 /// A Python module implemented in Rust.
 #[pymodule]
 fn vision_stream(_py: Python, m: &PyModule) -> PyResult<()> {
+    pyo3_log::init();
+
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+    m.add_class::<sources::RtspSource>()?;
     m.add_class::<sources::TestSource>()?;
     Ok(())
 }
