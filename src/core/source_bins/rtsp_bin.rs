@@ -55,7 +55,7 @@ impl RtspBin {
             .map_err(|_| GstMissingElementError("queue"))?;
 
         // config rtsp src
-        rtspsrc.set_property("location", &uri);
+        rtspsrc.set_property("location", uri);
         rtspsrc.set_property("latency", 100_u32);
         rtspsrc.set_property("drop-on-latency", true);
         if let Some(username) = username {
@@ -66,7 +66,7 @@ impl RtspBin {
         }
 
         // add elements to bin
-        bin.add_many(&[&rtspsrc, &decodebin, &queue])?;
+        bin.add_many([&rtspsrc, &decodebin, &queue])?;
 
         // add bin sink ghostpad
         add_bin_ghost_pad(&bin, &queue, "src")?;

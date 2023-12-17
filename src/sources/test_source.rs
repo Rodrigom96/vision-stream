@@ -16,8 +16,6 @@ pub struct TestSource {
 impl TestSource {
     #[new]
     pub fn new() -> Result<Self, Error> {
-        gst::init().unwrap();
-
         let pipeline = gst::Pipeline::new();
 
         let src = gst::ElementFactory::make("videotestsrc")

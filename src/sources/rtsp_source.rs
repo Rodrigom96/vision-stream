@@ -17,12 +17,10 @@ pub struct RtspSource {
 impl RtspSource {
     #[new]
     pub fn new(uri: &str) -> Result<Self, Error> {
-        gst::init().unwrap();
-
         let pipeline = gst::Pipeline::new();
 
         // crate pieline elements
-        let rtsp_bin = RtspBin::new(uri, None, None)?;
+        let rtspbin = RtspBin::new(uri, None, None)?;
         let videoconvert = gst::ElementFactory::make("videoconvert")
             .build()
             .map_err(|_| GstMissingElementError("videoconvert"))?;
@@ -42,9 +40,9 @@ impl RtspSource {
         capsfilter.set_property("caps", &caps);
 
         // add and link elements
-        pipeline.add(&rtsp_bin.bin)?;
+        pipeline.add(&rtspbin.bin)?;
         pipeline.add_many([&videoconvert, &capsfilter, appsink.upcast_ref()])?;
-        rtsp_bin.bin.link(&videoconvert)?;
+        rtspbin.bin.link(&videoconvert)?;
         videoconvert.link(&capsfilter)?;
         capsfilter.link(&appsink)?;
 
