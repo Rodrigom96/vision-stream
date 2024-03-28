@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use gst::prelude::*;
 
 use crate::core::gst_common::add_bin_ghost_pad;
@@ -36,6 +38,20 @@ fn pad_add_handler(src: &gst::Element, src_pad: &gst::Pad, sink: &gst::Element) 
     }
 }
 
+struct Context {
+    depay: Option<gst::Element>,
+    parser: Option<gst::Element>,
+}
+
+impl Context {
+    pub fn new() -> Self {
+        Self {
+            depay: None,
+            parser: None,
+        }
+    }
+}
+
 pub struct RtspBin {
     pub bin: gst::Bin,
 }
@@ -71,25 +87,92 @@ impl RtspBin {
         // add bin sink ghostpad
         add_bin_ghost_pad(&bin, &queue, "src")?;
 
+        let ctx = Arc::new(Mutex::new(Context::new()));
+
+        let ctx_clone = ctx.clone();
+        let bin_week = bin.downgrade();
+        let decodebin_week = decodebin.downgrade();
         rtspsrc.connect("select-stream", false, move |args| {
             let caps = args[2].get::<gst::Caps>().unwrap();
             let caps_struct = caps.structure(0).expect("Failed to get structure of caps.");
             let media: String = caps_struct
                 .get("media")
                 .expect("error on get struct \"media\"");
+            let encoding_name: String = caps_struct
+                .get("encoding-name")
+                .expect("error on get struct \"encoding-name\"");
 
             let is_video = media == "video";
             if !is_video {
                 return Some(false.to_value());
             }
 
+            // get and lock decoder
+            let mut ctx = ctx_clone.lock().unwrap();
+
+            // Create and add depay and parser if not created yet
+            if ctx.depay.is_none() {
+                let (depay, parser) = match encoding_name.as_str() {
+                    "H264" => {
+                        let depay = gst::ElementFactory::make("rtph264depay")
+                            .build()
+                            .expect("Cant create \"rtph264depay\" element");
+                        let parser = gst::ElementFactory::make("h264parse")
+                            .build()
+                            .expect("Cant create \"h264parse\" element");
+                        (depay, parser)
+                    }
+                    "H265" => {
+                        let depay = gst::ElementFactory::make("rtph265depay")
+                            .build()
+                            .expect("Cant create \"rtph265depay\" element");
+                        let parser = gst::ElementFactory::make("h265parse")
+                            .build()
+                            .expect("Cant create \"h265parse\" element");
+                        (depay, parser)
+                    }
+                    _ => {
+                        log::warn!("{} not supported", encoding_name);
+                        return Some(false.to_value());
+                    }
+                };
+                // add elements to bin
+                bin_week
+                    .upgrade()
+                    .unwrap()
+                    .add_many(&[&depay, &parser])
+                    .expect("Cant add depay and parser");
+
+                // link elements
+                depay.link(&parser).expect("Cant link depay with parser");
+                let decodebin = decodebin_week.upgrade().unwrap();
+                parser
+                    .link(&decodebin)
+                    .expect("Cant link parser with decodebin");
+
+                // sync elements with pipeline
+                depay
+                    .sync_state_with_parent()
+                    .expect("Depay, Cant sync state with parent");
+                parser
+                    .sync_state_with_parent()
+                    .expect("Parser, Cant sync state with parent");
+
+                // store depay on decoder
+                ctx.depay = Some(depay);
+                ctx.parser = Some(parser);
+            }
+
             Some(true.to_value())
         });
 
-        let decodebin_week = decodebin.downgrade();
+        let ctx_clone = ctx.clone();
         rtspsrc.connect_pad_added(move |src, src_pad| {
-            let decodebin = decodebin_week.upgrade().unwrap();
-            pad_add_handler(src, src_pad, &decodebin);
+            pad_add_handler(
+                src,
+                src_pad,
+                ctx_clone.lock().unwrap().depay.as_ref().unwrap(),
+            );
         });
         let queue_week = queue.downgrade();
         decodebin.connect_pad_added(move |src, src_pad| {
