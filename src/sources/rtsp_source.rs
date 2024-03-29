@@ -21,9 +21,12 @@ impl RtspSource {
 
         // crate pieline elements
         let rtspbin = RtspBin::new(uri, None, None)?;
-        let videoconvert = gst::ElementFactory::make("videoconvert")
-            .build()
-            .map_err(|_| GstMissingElementError("videoconvert"))?;
+        let videoconvert = match gst::ElementFactory::make("nvvideoconvert").build() {
+            Ok(e) => e,
+            Err(_) => gst::ElementFactory::make("videoconvert")
+                .build()
+                .map_err(|_| GstMissingElementError("videoconvert"))?,
+        };
         let capsfilter = gst::ElementFactory::make("capsfilter")
             .build()
             .map_err(|_| GstMissingElementError("capsfilter"))?;

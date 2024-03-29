@@ -13,7 +13,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn vision_stream(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _lib(_py: Python, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
     gst::init().expect("Error on gstreamer init");
 
