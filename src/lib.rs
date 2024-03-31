@@ -5,7 +5,7 @@ mod errors;
 mod image;
 mod sources;
 
-//#[cfg(feature = "deepstream")]
+#[cfg(feature = "deepstream")]
 mod deepstream;
 
 /// Formats the sum of two numbers as string.
@@ -24,7 +24,7 @@ fn _lib(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<sources::RtspSource>()?;
     m.add_class::<sources::TestSource>()?;
 
-    //#[cfg(feature = "deepstream")]
+    #[cfg(feature = "deepstream")]
     {
         deepstream::register_deepstream_module(py, m)?;
     }
