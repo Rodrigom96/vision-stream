@@ -1,5 +1,6 @@
 use pyo3::{prelude::*, py_run};
 
+mod nv_image;
 mod sources;
 
 pub fn register_deepstream_module(py: Python<'_>, parent_module: &PyModule) -> PyResult<()> {

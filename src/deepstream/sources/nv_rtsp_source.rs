@@ -1,15 +1,16 @@
 use gst::prelude::*;
 use pyo3::prelude::*;
+use pyo3_tch::PyTensor;
 use std::sync::{Arc, Mutex};
 
 use crate::core::source_bins::RtspBin;
+use crate::deepstream::nv_image::NvImage;
 use crate::errors::{Error, GstMissingElementError};
-use crate::image::Image;
 
 use deepstream_sys::nvbufsurface::{
     NvBufSurface, NvBufSurfaceCopy, NvBufSurfaceMemSet, NvBufSurfaceParams,
 };
-use libc::{c_int, c_uint, c_ulong, c_void};
+use libc::c_void;
 
 fn get_surface<'a>(buffer_map: &gst::BufferMap<'a, gst::buffer::Readable>) -> NvBufSurface {
     unsafe {
@@ -65,11 +66,8 @@ fn struct_copy(src: &mut NvBufSurface, dst: &mut NvBufSurface) {
     }
 }
 
-pub fn pull_nv_image(appsink: &gst_app::AppSink) {
+pub fn pull_nv_image(appsink: &gst_app::AppSink) -> Option<NvImage> {
     let sample = appsink.pull_sample().unwrap();
-
-    let caps = sample.caps().unwrap();
-    log::error!("caps: {:?}", caps);
 
     let buffer = sample.buffer().unwrap();
     let map = buffer.map_readable().unwrap();
@@ -97,14 +95,13 @@ pub fn pull_nv_image(appsink: &gst_app::AppSink) {
         assert_eq!(res, 0, "NvBufSurfaceCopy fail");
     }
 
-    let t = tensor.slice(-1, 0, 3, 1);
-    println!("t: {:?}", t);
+    Some(NvImage::new(tensor.slice(-1, 0, 3, 1)))
 }
 
 #[pyclass]
 pub struct NvRtspSource {
     pipeline: gst::Pipeline,
-    last_image: Arc<Mutex<Option<Image>>>,
+    last_nv_image: Arc<Mutex<Option<NvImage>>>,
 }
 
 #[pymethods]
@@ -141,14 +138,13 @@ impl NvRtspSource {
         videoconvert.link(&capsfilter)?;
         capsfilter.link(&appsink)?;
 
-        let last_image = Arc::new(Mutex::new(None));
-        let last_image_clone = Arc::clone(&last_image);
+        let last_nv_image = Arc::new(Mutex::new(None));
+        let last_nv_image_clone = Arc::clone(&last_nv_image);
         appsink.set_callbacks(
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |appsink| {
-                    //let mut img = last_image_clone.lock().unwrap();
-
-                    pull_nv_image(appsink);
+                    let mut img = last_nv_image_clone.lock().unwrap();
+                    *img = pull_nv_image(appsink);
 
                     Ok(gst::FlowSuccess::Ok)
                 })
@@ -159,12 +155,19 @@ impl NvRtspSource {
 
         Ok(Self {
             pipeline,
-            last_image,
+            last_nv_image,
         })
     }
 
-    fn read(&mut self) -> Option<Image> {
-        self.last_image.lock().unwrap().take()
+    fn read(&mut self) -> PyResult<Option<PyTensor>> {
+        let nv_img = self.last_nv_image.lock().unwrap().take();
+        match nv_img {
+            Some(nv_img) => {
+                let tensor = nv_img.to_pytorch()?;
+                Ok(Some(tensor))
+            }
+            None => Ok(None),
+        }
     }
 }
 
