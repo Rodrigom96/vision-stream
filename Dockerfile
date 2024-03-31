@@ -18,7 +18,9 @@ RUN /opt/nvidia/deepstream/deepstream/user_additional_install.sh \
 WORKDIR /app
 
 RUN pip install pip -U
+RUN pip install torch==2.2.0 --index-url https://download.pytorch.org/whl/cu121
 
+COPY deepstream-sys deepstream-sys
 COPY python python
 COPY src src
 COPY Cargo.lock .
@@ -26,4 +28,9 @@ COPY Cargo.toml .
 COPY pyproject.toml .
 COPY setup.py .
 
-RUN pip install .
+ENV LD_LIBRARY_PATH="/opt/nvidia/deepstream/deepstream/lib/:${LD_LIBRARY_PATH}"
+
+#Use the libtorch provided by PyTorch
+ENV LIBTORCH_USE_PYTORCH=1 
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install .
