@@ -95,6 +95,8 @@ pub fn pull_nv_image(appsink: &gst_app::AppSink) -> Option<NvImage> {
         assert_eq!(res, 0, "NvBufSurfaceCopy fail");
     }
 
+    unsafe { libc::free(torch_surface.surface_list as *mut c_void) }
+
     Some(NvImage::new(tensor.slice(-1, 0, 3, 1)))
 }
 
