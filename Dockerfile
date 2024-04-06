@@ -30,7 +30,5 @@ COPY setup.py .
 
 ENV LD_LIBRARY_PATH="/opt/nvidia/deepstream/deepstream/lib/:${LD_LIBRARY_PATH}"
 
-#Use the libtorch provided by PyTorch
-ENV LIBTORCH_USE_PYTORCH=1 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    WITH_DS=true pip install .
+    WITH_DS=true pip install .[torch]

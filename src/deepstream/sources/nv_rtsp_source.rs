@@ -1,7 +1,5 @@
-use cust_raw::{cuMemcpyDtoD_v2, cudaError_enum, CUdeviceptr};
 use gst::prelude::*;
 use pyo3::prelude::*;
-use pyo3_tch::PyTensor;
 use std::sync::{Arc, Mutex};
 
 use deepstream_sys::nvbufsurface::NvBufSurface;
@@ -16,29 +14,10 @@ pub fn pull_nv_image(appsink: &gst_app::AppSink) -> Option<NvImage> {
     let buffer = sample.buffer().unwrap();
     let map = buffer.map_readable().unwrap();
 
-    // get nvbufsurface
-    let surf0_params = unsafe {
-        let surface = &*(map.as_slice().as_ptr() as *const NvBufSurface);
-        &std::slice::from_raw_parts_mut(surface.surface_list, surface.num_filled as usize)[0]
-    };
+    let surface = unsafe { &*(map.as_slice().as_ptr() as *const NvBufSurface) };
+    let nv_image = NvImage::copy_from(surface);
 
-    // create empty torch tensor
-    let tensor = tch::Tensor::empty(
-        &[surf0_params.height as i64, surf0_params.width as i64, 4_i64],
-        (tch::Kind::Uint8, tch::Device::Cuda(0)),
-    );
-
-    // copy nvbufsurface image into torch tensor
-    unsafe {
-        let cu_mem_copy_result = cuMemcpyDtoD_v2(
-            tensor.data_ptr() as CUdeviceptr,
-            surf0_params.data_ptr as CUdeviceptr,
-            surf0_params.data_size.try_into().unwrap(),
-        );
-        assert_eq!(cu_mem_copy_result, cudaError_enum::CUDA_SUCCESS);
-    }
-
-    Some(NvImage::new(tensor.slice(-1, 0, 3, 1)))
+    Some(nv_image)
 }
 
 #[pyclass]
@@ -102,15 +81,8 @@ impl NvRtspSource {
         })
     }
 
-    fn read(&mut self) -> PyResult<Option<PyTensor>> {
-        let nv_img = self.last_nv_image.lock().unwrap().take();
-        match nv_img {
-            Some(nv_img) => {
-                let tensor = nv_img.to_pytorch()?;
-                Ok(Some(tensor))
-            }
-            None => Ok(None),
-        }
+    fn read(&mut self) -> Option<NvImage> {
+        self.last_nv_image.lock().unwrap().take()
     }
 }
 
