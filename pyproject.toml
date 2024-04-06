@@ -11,3 +11,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
+[project.optional-dependencies]
+torch = [
+  "cuda-python",
+  "torch",
+]
