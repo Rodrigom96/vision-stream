@@ -20,10 +20,10 @@ numpy = "0.18.0"
 pyo3 = { version = "0.18.3", features = ["extension-module"] }
 pyo3-log = "0.9.0"
 deepstream-sys = { path = "deepstream-sys", optional = true }
-cust_raw = "0.11.3"
+cust_raw = { version = "0.11.3", optional = true }
 
 [features]
-deepstream = ["dep:libc", "dep:deepstream-sys"]
+deepstream = ["dep:libc", "dep:deepstream-sys", "dep:cust_raw"]
 
 [workspace]
 members = ["deepstream-sys"]
