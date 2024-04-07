@@ -5,7 +5,7 @@ use deepstream_sys::nvbufsurface::NvBufSurface;
 
 #[pyclass]
 #[derive(Debug)]
-pub struct NvImage {
+pub struct CudaImage {
     #[pyo3(get)]
     width: usize,
     #[pyo3(get)]
@@ -14,9 +14,11 @@ pub struct NvImage {
     channels: usize,
     #[pyo3(get)]
     data_ptr: cuda::CUdeviceptr,
+    #[pyo3(get)]
+    device: usize,
 }
 
-impl NvImage {
+impl CudaImage {
     pub fn copy_from(surface: &NvBufSurface) -> Self {
         let mut data_ptr = cuda::CUdeviceptr::default();
 
@@ -44,11 +46,31 @@ impl NvImage {
             height: surf0_params.height as usize,
             channels: 4,
             data_ptr,
+            device: surface.gpu_id as usize,
         }
     }
 }
 
-impl Drop for NvImage {
+#[pymethods]
+impl CudaImage {
+    #[getter]
+    fn shape(&self) -> (usize, usize, usize) {
+        return (self.height, self.width, self.channels);
+    }
+
+    fn copy_to(&self, data_ptr: cuda::CUdeviceptr) {
+        unsafe {
+            let result = cuda::cuMemcpyDtoD_v2(
+                data_ptr,
+                self.data_ptr,
+                self.width * self.height * self.channels,
+            );
+            assert_eq!(result, cuda::cudaError_enum::CUDA_SUCCESS);
+        }
+    }
+}
+
+impl Drop for CudaImage {
     fn drop(&mut self) {
         unsafe {
             let result = cuda::cuMemFree_v2(self.data_ptr);

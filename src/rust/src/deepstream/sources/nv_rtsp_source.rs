@@ -5,25 +5,25 @@ use std::sync::{Arc, Mutex};
 use deepstream_sys::nvbufsurface::NvBufSurface;
 
 use crate::core::source_bins::RtspBin;
-use crate::deepstream::nv_image::NvImage;
+use crate::deepstream::cuda_image::CudaImage;
 use crate::errors::{Error, GstMissingElementError};
 
-pub fn pull_nv_image(appsink: &gst_app::AppSink) -> Option<NvImage> {
+pub fn pull_cuda_image(appsink: &gst_app::AppSink) -> Option<CudaImage> {
     let sample = appsink.pull_sample().unwrap();
 
     let buffer = sample.buffer().unwrap();
     let map = buffer.map_readable().unwrap();
 
     let surface = unsafe { &*(map.as_slice().as_ptr() as *const NvBufSurface) };
-    let nv_image = NvImage::copy_from(surface);
+    let cuda_image = CudaImage::copy_from(surface);
 
-    Some(nv_image)
+    Some(cuda_image)
 }
 
 #[pyclass]
 pub struct NvRtspSource {
     pipeline: gst::Pipeline,
-    last_nv_image: Arc<Mutex<Option<NvImage>>>,
+    last_cuda_image: Arc<Mutex<Option<CudaImage>>>,
 }
 
 #[pymethods]
@@ -60,13 +60,13 @@ impl NvRtspSource {
         videoconvert.link(&capsfilter)?;
         capsfilter.link(&appsink)?;
 
-        let last_nv_image = Arc::new(Mutex::new(None));
-        let last_nv_image_clone = Arc::clone(&last_nv_image);
+        let last_cuda_image = Arc::new(Mutex::new(None));
+        let last_cuda_image_clone = Arc::clone(&last_cuda_image);
         appsink.set_callbacks(
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |appsink| {
-                    let mut img = last_nv_image_clone.lock().unwrap();
-                    *img = pull_nv_image(appsink);
+                    let mut img = last_cuda_image_clone.lock().unwrap();
+                    *img = pull_cuda_image(appsink);
 
                     Ok(gst::FlowSuccess::Ok)
                 })
@@ -77,12 +77,12 @@ impl NvRtspSource {
 
         Ok(Self {
             pipeline,
-            last_nv_image,
+            last_cuda_image,
         })
     }
 
-    fn read(&mut self) -> Option<NvImage> {
-        self.last_nv_image.lock().unwrap().take()
+    fn read(&mut self) -> Option<CudaImage> {
+        self.last_cuda_image.lock().unwrap().take()
     }
 }
 

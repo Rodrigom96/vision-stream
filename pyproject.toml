@@ -18,6 +18,5 @@ include = ["vision_stream*"]
 
 [project.optional-dependencies]
 torch = [
-  "cuda-python",
   "torch",
 ]
