@@ -25,11 +25,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # install vision stream
 WORKDIR /app/vision-stream
 
-COPY deepstream-sys deepstream-sys
 COPY python python
 COPY src src
-COPY Cargo.lock .
-COPY Cargo.toml .
 COPY pyproject.toml .
 COPY setup.py .
 

@@ -16,7 +16,7 @@ setup(
     rust_extensions=[
         RustExtension(
             "vision_stream._lib",
-            path="Cargo.toml",
+            path="src/rust/Cargo.toml",
             binding=Binding.PyO3,
             features=rust_lib_features
         )
