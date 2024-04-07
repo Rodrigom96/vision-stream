@@ -25,7 +25,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # install vision stream
 WORKDIR /app/vision-stream
 
-COPY python python
 COPY src src
 COPY pyproject.toml .
 COPY setup.py .

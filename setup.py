@@ -11,8 +11,6 @@ if deepstream_extra:
 setup(
     name="vision-stream",
     version="0.1.0",
-    packages=find_packages(where="python"),
-    package_dir={"": "python"},
     rust_extensions=[
         RustExtension(
             "vision_stream._lib",

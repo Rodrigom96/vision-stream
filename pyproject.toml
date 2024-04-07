@@ -12,6 +12,10 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["vision_stream*"]
+
 [project.optional-dependencies]
 torch = [
   "cuda-python",
