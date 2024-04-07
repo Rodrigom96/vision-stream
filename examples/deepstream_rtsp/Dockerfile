@@ -7,18 +7,23 @@ RUN apt-get update &&\
     python3-pip \
     libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad
-
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-qt5
 
 RUN /opt/nvidia/deepstream/deepstream/user_additional_install.sh \
     && apt remove -y gstreamer1.0-plugins-ugly
 
-WORKDIR /app
+# install rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
+# install pytorch
 RUN pip install pip -U
-RUN pip install torch==2.2.0 --index-url https://download.pytorch.org/whl/cu121
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install  torch==2.2.0 --index-url https://download.pytorch.org/whl/cu121
+
+# install vision stream
+WORKDIR /app/vision-stream
 
 COPY deepstream-sys deepstream-sys
 COPY python python
@@ -32,3 +37,12 @@ ENV LD_LIBRARY_PATH="/opt/nvidia/deepstream/deepstream/lib/:${LD_LIBRARY_PATH}"
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     WITH_DS=true pip install .[torch]
+
+# copy example
+WORKDIR /app
+
+COPY examples/deepstream_rtsp/requirement.txt .
+COPY examples/deepstream_rtsp/main.py .
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirement.txt

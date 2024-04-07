@@ -1,0 +1,11 @@
+services:
+  app:
+    image: vision-stream:deepstream
+    build:
+      context: ../../
+      dockerfile: ./examples/deepstream_rtsp/Dockerfile
+    volumes:
+      - /tmp/.X11-unix/:/tmp/.X11-unix:ro
+    environment:
+      - DISPLAY=$DISPLAY
+      - GST_DEBUG=1
