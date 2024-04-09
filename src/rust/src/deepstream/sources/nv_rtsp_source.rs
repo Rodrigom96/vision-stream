@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use deepstream_sys::nvbufsurface::NvBufSurface;
 
+use crate::core::pipeline::Pipeline;
 use crate::core::source_bins::RtspBin;
 use crate::deepstream::cuda_image::CudaImage;
 use crate::errors::{Error, GstMissingElementError};
@@ -22,7 +23,7 @@ pub fn pull_cuda_image(appsink: &gst_app::AppSink) -> Option<CudaImage> {
 
 #[pyclass]
 pub struct NvRtspSource {
-    pipeline: gst::Pipeline,
+    pipeline: Pipeline,
     last_cuda_image: Arc<Mutex<Option<CudaImage>>>,
 }
 
@@ -30,7 +31,7 @@ pub struct NvRtspSource {
 impl NvRtspSource {
     #[new]
     pub fn new(uri: &str) -> Result<Self, Error> {
-        let pipeline = gst::Pipeline::new();
+        let pipeline = Pipeline::new(uri);
 
         // crate pieline elements
         let rtspbin = RtspBin::new(uri, None, None)?;

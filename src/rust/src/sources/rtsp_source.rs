@@ -3,13 +3,14 @@ use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
 use crate::core::appsink::pull_appsink_image;
+use crate::core::pipeline::Pipeline;
 use crate::core::source_bins::RtspBin;
 use crate::errors::{Error, GstMissingElementError};
 use crate::image::Image;
 
 #[pyclass]
 pub struct RtspSource {
-    pipeline: gst::Pipeline,
+    pipeline: Pipeline,
     last_image: Arc<Mutex<Option<Image>>>,
 }
 
@@ -17,7 +18,7 @@ pub struct RtspSource {
 impl RtspSource {
     #[new]
     pub fn new(uri: &str) -> Result<Self, Error> {
-        let pipeline = gst::Pipeline::new();
+        let pipeline = Pipeline::new(uri);
 
         // crate pieline elements
         let rtspbin = RtspBin::new(uri, None, None)?;
