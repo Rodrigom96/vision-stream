@@ -14,6 +14,11 @@ def main(rtsp_path: str):
             # Display the resulting frame
             cv2.imshow('Frame', frame.to_tensor().cpu().numpy())
 
+        if cap.is_reconnecting():
+            print("reconnecting...")
+            if cv2.waitKey(1000) & 0xFF == ord('q'):
+                break
+
         # Press Q on keyboard to  exit
         if cv2.waitKey(25) & 0xFF == ord('q'):
             break

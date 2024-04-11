@@ -24,6 +24,7 @@ pub fn pull_cuda_image(appsink: &gst_app::AppSink) -> Option<CudaImage> {
 #[pyclass]
 pub struct NvRtspSource {
     pipeline: Pipeline,
+    rtspbin: RtspBin,
     last_cuda_image: Arc<Mutex<Option<CudaImage>>>,
 }
 
@@ -78,12 +79,17 @@ impl NvRtspSource {
 
         Ok(Self {
             pipeline,
+            rtspbin,
             last_cuda_image,
         })
     }
 
     fn read(&mut self) -> Option<CudaImage> {
         self.last_cuda_image.lock().unwrap().take()
+    }
+
+    fn is_reconnecting(&self) -> bool {
+        self.rtspbin.is_reconnecting()
     }
 }
 

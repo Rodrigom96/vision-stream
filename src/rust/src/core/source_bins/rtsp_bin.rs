@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use gst::prelude::*;
 
+use crate::core::bin_connection_manager::BinConectionManager;
 use crate::core::gst_common::add_bin_ghost_pad;
 use crate::errors::{Error, GstMissingElementError};
 
@@ -54,11 +56,13 @@ impl Context {
 
 pub struct RtspBin {
     pub bin: gst::Bin,
+    pub connection_manager: Arc<BinConectionManager>,
 }
 
 impl RtspBin {
     pub fn new(uri: &str, username: Option<&str>, password: Option<&str>) -> Result<Self, Error> {
         let bin = gst::Bin::new();
+        let connection_manager = Arc::new(BinConectionManager::new(&bin));
 
         let rtspsrc = gst::ElementFactory::make("rtspsrc")
             .build()
@@ -166,8 +170,13 @@ impl RtspBin {
             Some(true.to_value())
         });
 
+        let bin_week = bin.downgrade();
         let ctx_clone = ctx.clone();
+        let connection_manager_clone = Arc::downgrade(&connection_manager);
         rtspsrc.connect_pad_added(move |src, src_pad| {
+            let bin = bin_week.upgrade().unwrap();
+            let connection_manager_clone = connection_manager_clone.upgrade().unwrap();
+            connection_manager_clone.setup_src_pad(src_pad);
             pad_add_handler(
                 src,
                 src_pad,
@@ -180,6 +189,19 @@ impl RtspBin {
             pad_add_handler(src, src_pad, &queue);
         });
 
-        Ok(Self { bin })
+        Ok(Self {
+            bin,
+            connection_manager,
+        })
+    }
+
+    pub fn is_reconnecting(&self) -> bool {
+        self.connection_manager.is_reconnecting()
+    }
+}
+
+impl Drop for RtspBin {
+    fn drop(&mut self) {
+        log::debug!("Drop RtspBin");
     }
 }

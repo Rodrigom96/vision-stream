@@ -11,6 +11,7 @@ use crate::image::Image;
 #[pyclass]
 pub struct RtspSource {
     pipeline: Pipeline,
+    rtspbin: RtspBin,
     last_image: Arc<Mutex<Option<Image>>>,
 }
 
@@ -67,12 +68,17 @@ impl RtspSource {
 
         Ok(Self {
             pipeline,
+            rtspbin,
             last_image,
         })
     }
 
     fn read(&mut self) -> Option<Image> {
         self.last_image.lock().unwrap().take()
+    }
+
+    fn is_reconnecting(&self) -> bool {
+        self.rtspbin.is_reconnecting()
     }
 }
 

@@ -17,3 +17,6 @@ class NvRtspSource:
             return None
 
         return CudaImage(img_rs)
+
+    def is_reconnecting(self) -> bool:
+        return self._source.is_reconnecting()
