@@ -170,11 +170,9 @@ impl RtspBin {
             Some(true.to_value())
         });
 
-        let bin_week = bin.downgrade();
         let ctx_clone = ctx.clone();
         let connection_manager_clone = Arc::downgrade(&connection_manager);
         rtspsrc.connect_pad_added(move |src, src_pad| {
-            let bin = bin_week.upgrade().unwrap();
             let connection_manager_clone = connection_manager_clone.upgrade().unwrap();
             connection_manager_clone.setup_src_pad(src_pad);
             pad_add_handler(
