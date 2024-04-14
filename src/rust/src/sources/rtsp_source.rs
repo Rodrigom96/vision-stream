@@ -18,11 +18,11 @@ pub struct RtspSource {
 #[pymethods]
 impl RtspSource {
     #[new]
-    pub fn new(uri: &str) -> Result<Self, Error> {
+    pub fn new(uri: &str, username: Option<&str>, password: Option<&str>) -> Result<Self, Error> {
         let pipeline = Pipeline::new(uri);
 
         // crate pieline elements
-        let rtspbin = RtspBin::new(uri, None, None)?;
+        let rtspbin = RtspBin::new(uri, username, password)?;
         let videoconvert = match gst::ElementFactory::make("nvvideoconvert").build() {
             Ok(e) => e,
             Err(_) => gst::ElementFactory::make("videoconvert")

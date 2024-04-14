@@ -8,8 +8,14 @@ class NvRtspSource:
     def __init__(
         self,
         uri: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> None:
-        self._source = NvRtspSourceRs(uri)
+        self._source = NvRtspSourceRs(
+            uri,
+            username=username,
+            password=password,
+        )
 
     def read(self) -> Optional[CudaImage]:
         img_rs = self._source.read()
