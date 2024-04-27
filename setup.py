@@ -2,9 +2,13 @@ import os
 from setuptools import find_packages, setup
 from setuptools_rust import Binding, RustExtension
 
+cuda_extra = os.getenv("WITH_CUDA") is not None
 deepstream_extra = os.getenv("WITH_DS") is not None
 
 rust_lib_features = []
+
+if cuda_extra:
+    rust_lib_features += ["cuda"]
 if deepstream_extra:
     rust_lib_features += ["deepstream"]
 

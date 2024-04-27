@@ -14,16 +14,18 @@ crate-type = ["cdylib"]
 glib = "0.18.4"
 gst = { package = "gstreamer", version = "0.21.2" }
 gst-app = { package = "gstreamer-app", version = "0.21.2" }
-libc = { version = "0.2.153", optional = true }
 log = "0.4.20"
 numpy = "0.18.0"
 pyo3 = { version = "0.18.3", features = ["extension-module"] }
 pyo3-log = "0.9.0"
-deepstream-sys = { path = "deepstream-sys", optional = true }
 cust_raw = { version = "0.11.3", optional = true }
 
+deepstream-sys = { path = "deepstream-sys", optional = true }
+gst-cuda-sys = { path = "gst-cuda-sys", optional = true }
+
 [features]
-deepstream = ["dep:libc", "dep:deepstream-sys", "dep:cust_raw"]
+cuda = ["dep:cust_raw", "dep:gst-cuda-sys"]
+deepstream = ["cuda", "dep:deepstream-sys"]
 
 [workspace]
-members = ["deepstream-sys"]
+members = ["deepstream-sys", "gst-cuda-sys"]

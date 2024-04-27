@@ -1,26 +1,6 @@
-from typing import Optional, Tuple
+from typing import Optional
 
-
-class CudaImage:
-    @property
-    def width(self) -> int: ...
-
-    @property
-    def height(self) -> int: ...
-
-    @property
-    def channels(self) -> int: ...
-
-    @property
-    def data_ptr(self) -> int: ...
-
-    @property
-    def device(self) -> int: ...
-
-    @property
-    def shape(self) -> Tuple[int, int, int]: ...
-
-    def copy_to(self, data_ptr: int): ...
+from vision_stream._lib.cuda import CudaImage
 
 
 class NvRtspSource:

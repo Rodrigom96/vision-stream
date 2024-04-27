@@ -1,8 +1,6 @@
 use cust_raw as cuda;
 use pyo3::prelude::*;
 
-use deepstream_sys::nvbufsurface::NvBufSurface;
-
 #[pyclass]
 #[derive(Debug)]
 pub struct CudaImage {
@@ -15,38 +13,39 @@ pub struct CudaImage {
     #[pyo3(get)]
     data_ptr: cuda::CUdeviceptr,
     #[pyo3(get)]
-    device: usize,
+    device: i32,
 }
 
 impl CudaImage {
-    pub fn copy_from(surface: &NvBufSurface) -> Self {
+    pub unsafe fn copy_from_cuda_ptr(
+        src_data_ptr: cuda::CUdeviceptr,
+        width: usize,
+        height: usize,
+        channels: usize,
+        device: i32,
+    ) -> Self {
         let mut data_ptr = cuda::CUdeviceptr::default();
 
-        let surf0_params = unsafe {
-            &std::slice::from_raw_parts_mut(surface.surface_list, surface.num_filled as usize)[0]
-        };
+        let size = width * height * channels;
 
         unsafe {
-            let result = cuda::cuMemAlloc_v2(
-                &mut data_ptr as *mut cuda::CUdeviceptr,
-                surf0_params.data_size.try_into().unwrap(),
+            assert_eq!(
+                cuda::cuMemAlloc_v2(&mut data_ptr as *mut cuda::CUdeviceptr, size),
+                cuda::cudaError_enum::CUDA_SUCCESS
             );
-            assert_eq!(result, cuda::cudaError_enum::CUDA_SUCCESS);
 
-            let result = cuda::cuMemcpyDtoD_v2(
-                data_ptr,
-                surf0_params.data_ptr as cuda::CUdeviceptr,
-                surf0_params.data_size.try_into().unwrap(),
+            assert_eq!(
+                cuda::cuMemcpyDtoD_v2(data_ptr, src_data_ptr, size),
+                cuda::cudaError_enum::CUDA_SUCCESS
             );
-            assert_eq!(result, cuda::cudaError_enum::CUDA_SUCCESS);
         }
 
         Self {
-            width: surf0_params.width as usize,
-            height: surf0_params.height as usize,
-            channels: 4,
+            width,
+            height,
+            channels,
             data_ptr,
-            device: surface.gpu_id as usize,
+            device,
         }
     }
 }

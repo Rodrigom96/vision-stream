@@ -5,6 +5,9 @@ mod errors;
 mod image;
 mod sources;
 
+#[cfg(feature = "cuda")]
+mod cuda;
+
 #[cfg(feature = "deepstream")]
 mod deepstream;
 
@@ -23,6 +26,11 @@ fn _lib(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     m.add_class::<sources::RtspSource>()?;
     m.add_class::<sources::TestSource>()?;
+
+    #[cfg(feature = "cuda")]
+    {
+        cuda::register_cuda_module(py, m)?;
+    }
 
     #[cfg(feature = "deepstream")]
     {

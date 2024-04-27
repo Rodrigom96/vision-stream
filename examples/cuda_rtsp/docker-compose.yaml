@@ -1,9 +1,9 @@
 services:
   app:
-    image: vision-stream:deepstream
+    image: vision-stream:cuda
     build:
       context: ../../
-      dockerfile: ./examples/deepstream_rtsp/Dockerfile
+      dockerfile: ./examples/cuda_rtsp/Dockerfile
     volumes:
       - /tmp/.X11-unix/:/tmp/.X11-unix:ro
     environment:

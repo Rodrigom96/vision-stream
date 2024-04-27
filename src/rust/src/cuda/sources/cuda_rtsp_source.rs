@@ -2,58 +2,66 @@ use gst::prelude::*;
 use pyo3::prelude::*;
 use std::sync::{Arc, Mutex};
 
-use deepstream_sys::nvbufsurface::NvBufSurface;
-
 use crate::core::pipeline::Pipeline;
 use crate::core::source_bins::RtspBin;
 use crate::cuda::image::CudaImage;
 use crate::errors::{Error, GstMissingElementError};
 
-pub fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaImage> {
+fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaImage> {
     let sample = appsink.pull_sample().unwrap();
 
     let buffer = sample.buffer().unwrap();
-    let map = buffer.map_readable().unwrap();
-
-    let surface = unsafe { &*(map.as_slice().as_ptr() as *const NvBufSurface) };
-    let surf0_params = unsafe {
-        &std::slice::from_raw_parts_mut(surface.surface_list, surface.num_filled as usize)[0]
-    };
-
-    let width = surf0_params.width as usize;
-    let height = surf0_params.height as usize;
+    let gst_mem = buffer.memory(0).unwrap();
+    let mem = unsafe { &*(gst_mem.as_ptr() as *const gst_cuda_sys::memory::GstCudaMemory) };
+    let width = mem.alloc_params.info.width as usize;
+    let height = mem.alloc_params.info.height as usize;
 
     unsafe {
-        let image = CudaImage::copy_from_cuda_ptr(
-            surf0_params.data_ptr as cust_raw::CUdeviceptr,
+        let gst_cuda_context = &*(*mem.context).r#priv;
+
+        // push cuda context
+        assert_eq!(
+            cust_raw::cuCtxPushCurrent_v2(gst_cuda_context.context),
+            cust_raw::cudaError_enum::CUDA_SUCCESS
+        );
+
+        // copy image to cuda image
+        let img = CudaImage::copy_from_cuda_ptr(
+            mem.data,
             width,
             height,
             channels,
-            surface.gpu_id as i32,
+            gst_cuda_context.device_id,
         );
 
-        Some(image)
+        // pop cuda context
+        assert_eq!(
+            cust_raw::cuCtxPopCurrent_v2(&mut std::ptr::null_mut() as *mut cust_raw::CUcontext),
+            cust_raw::cudaError_enum::CUDA_SUCCESS
+        );
+
+        Some(img)
     }
 }
 
 #[pyclass]
-pub struct NvRtspSource {
+pub struct CudaRtspSource {
     pipeline: Pipeline,
     rtspbin: RtspBin,
-    last_cuda_image: Arc<Mutex<Option<CudaImage>>>,
+    last_image: Arc<Mutex<Option<CudaImage>>>,
 }
 
 #[pymethods]
-impl NvRtspSource {
+impl CudaRtspSource {
     #[new]
     pub fn new(uri: &str, username: Option<&str>, password: Option<&str>) -> Result<Self, Error> {
         let pipeline = Pipeline::new(uri);
 
         // crate pieline elements
         let rtspbin = RtspBin::new(uri, username, password)?;
-        let videoconvert = gst::ElementFactory::make("nvvideoconvert")
+        let videoconvert = gst::ElementFactory::make("cudaconvert")
             .build()
-            .map_err(|_| GstMissingElementError("nvvideoconvert"))?;
+            .map_err(|_| GstMissingElementError("cudaconvert"))?;
         let capsfilter = gst::ElementFactory::make("capsfilter")
             .build()
             .map_err(|_| GstMissingElementError("capsfilter"))?;
@@ -65,8 +73,8 @@ impl NvRtspSource {
 
         // config capsfilter
         let caps = gst::Caps::builder("video/x-raw")
-            .field("format", "RGBA")
-            .features(["memory:NVMM"])
+            .features(["memory:CUDAMemory"])
+            .field("format", "BGRA")
             .build();
         capsfilter.set_property("caps", &caps);
 
@@ -77,12 +85,12 @@ impl NvRtspSource {
         videoconvert.link(&capsfilter)?;
         capsfilter.link(&appsink)?;
 
-        let last_cuda_image = Arc::new(Mutex::new(None));
-        let last_cuda_image_clone = Arc::clone(&last_cuda_image);
+        let last_image = Arc::new(Mutex::new(None));
+        let last_image_clone = Arc::clone(&last_image);
         appsink.set_callbacks(
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |appsink| {
-                    let mut img = last_cuda_image_clone.lock().unwrap();
+                    let mut img = last_image_clone.lock().unwrap();
                     *img = pull_cuda_image(appsink, 4);
 
                     Ok(gst::FlowSuccess::Ok)
@@ -95,12 +103,12 @@ impl NvRtspSource {
         Ok(Self {
             pipeline,
             rtspbin,
-            last_cuda_image,
+            last_image,
         })
     }
 
     fn read(&mut self) -> Option<CudaImage> {
-        self.last_cuda_image.lock().unwrap().take()
+        self.last_image.lock().unwrap().take()
     }
 
     fn is_reconnecting(&self) -> bool {
@@ -108,7 +116,7 @@ impl NvRtspSource {
     }
 }
 
-impl Drop for NvRtspSource {
+impl Drop for CudaRtspSource {
     fn drop(&mut self) {
         self.pipeline
             .set_state(gst::State::Null)
