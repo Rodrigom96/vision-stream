@@ -22,12 +22,14 @@ pub fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<Cu
 
     let width = surf0_params.width as usize;
     let height = surf0_params.height as usize;
+    let pitch = surf0_params.pitch as usize;
 
     unsafe {
         let image = CudaImage::copy_from_cuda_ptr(
             surf0_params.data_ptr as cust_raw::CUdeviceptr,
             width,
             height,
+            pitch,
             channels,
             surface.gpu_id as i32,
         );
@@ -65,7 +67,7 @@ impl NvRtspSource {
 
         // config capsfilter
         let caps = gst::Caps::builder("video/x-raw")
-            .field("format", "RGBA")
+            .field("format", "BGR")
             .features(["memory:NVMM"])
             .build();
         capsfilter.set_property("caps", &caps);
@@ -83,7 +85,7 @@ impl NvRtspSource {
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |appsink| {
                     let mut img = last_cuda_image_clone.lock().unwrap();
-                    *img = pull_cuda_image(appsink, 4);
+                    *img = pull_cuda_image(appsink, 3);
 
                     Ok(gst::FlowSuccess::Ok)
                 })

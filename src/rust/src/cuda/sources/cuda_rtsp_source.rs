@@ -30,6 +30,7 @@ fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaIm
             mem.data,
             width,
             height,
+            width * channels,
             channels,
             gst_cuda_context.device_id,
         );

@@ -21,6 +21,7 @@ impl CudaImage {
         src_data_ptr: cuda::CUdeviceptr,
         width: usize,
         height: usize,
+        pitch: usize,
         channels: usize,
         device: i32,
     ) -> Self {
@@ -34,10 +35,15 @@ impl CudaImage {
                 cuda::cudaError_enum::CUDA_SUCCESS
             );
 
-            assert_eq!(
-                cuda::cuMemcpyDtoD_v2(data_ptr, src_data_ptr, size),
-                cuda::cudaError_enum::CUDA_SUCCESS
-            );
+            let copy_size = width * channels;
+            for i in 0..height {
+                let src_offset = (i * pitch) as u64;
+                let dst_offset = (i * width * channels) as u64;
+                assert_eq!(
+                    cuda::cuMemcpyDtoD_v2(data_ptr + dst_offset, src_data_ptr + src_offset, copy_size),
+                    cuda::cudaError_enum::CUDA_SUCCESS
+                );
+            }
         }
 
         Self {
