@@ -15,6 +15,7 @@ fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaIm
     let mem = unsafe { &*(gst_mem.as_ptr() as *const gst_cuda_sys::memory::GstCudaMemory) };
     let width = mem.alloc_params.info.width as usize;
     let height = mem.alloc_params.info.height as usize;
+    let pitch = ((width * channels) as f32 / 512.).ceil() as usize * 512;
 
     unsafe {
         let gst_cuda_context = &*(*mem.context).r#priv;
@@ -30,7 +31,7 @@ fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaIm
             mem.data,
             width,
             height,
-            width * channels,
+            pitch,
             channels,
             gst_cuda_context.device_id,
         );
@@ -75,7 +76,7 @@ impl CudaRtspSource {
         // config capsfilter
         let caps = gst::Caps::builder("video/x-raw")
             .features(["memory:CUDAMemory"])
-            .field("format", "BGRA")
+            .field("format", "BGR")
             .build();
         capsfilter.set_property("caps", &caps);
 
@@ -92,7 +93,7 @@ impl CudaRtspSource {
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |appsink| {
                     let mut img = last_image_clone.lock().unwrap();
-                    *img = pull_cuda_image(appsink, 4);
+                    *img = pull_cuda_image(appsink, 3);
 
                     Ok(gst::FlowSuccess::Ok)
                 })
