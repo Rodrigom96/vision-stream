@@ -35,15 +35,25 @@ impl CudaImage {
                 cuda::cudaError_enum::CUDA_SUCCESS
             );
 
-            let copy_size = width * channels;
-            for i in 0..height {
-                let src_offset = (i * pitch) as u64;
-                let dst_offset = (i * width * channels) as u64;
-                assert_eq!(
-                    cuda::cuMemcpyDtoD_v2(data_ptr + dst_offset, src_data_ptr + src_offset, copy_size),
-                    cuda::cudaError_enum::CUDA_SUCCESS
-                );
-            }
+            let params = cuda::CUDA_MEMCPY2D {
+                Height: height,
+                WidthInBytes: width * channels,
+                dstArray: std::ptr::null_mut(),
+                dstDevice: data_ptr,
+                dstHost: std::ptr::null_mut(),
+                dstMemoryType: cuda::CUmemorytype_enum::CU_MEMORYTYPE_DEVICE,
+                dstPitch: width * channels,
+                dstXInBytes: 0,
+                dstY: 0,
+                srcArray: std::ptr::null_mut(),
+                srcDevice: src_data_ptr,
+                srcHost: std::ptr::null_mut(),
+                srcMemoryType: cuda::CUmemorytype_enum::CU_MEMORYTYPE_DEVICE,
+                srcPitch: pitch,
+                srcXInBytes: 0,
+                srcY: 0,
+            };
+            cuda::cuMemcpy2D_v2(&params as *const _);
         }
 
         Self {
