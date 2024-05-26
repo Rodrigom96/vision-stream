@@ -7,6 +7,23 @@ use crate::core::source_bins::RtspBin;
 use crate::cuda::image::CudaImage;
 use crate::errors::{Error, GstMissingElementError};
 
+fn get_cuda_pitch(width: usize, channels: usize) -> usize {
+    let mut ptr = cust_raw::CUdeviceptr::default();
+    let mut pitch = 0;
+    unsafe {
+        assert_eq!(
+            cust_raw::cuMemAllocPitch_v2(&mut ptr, &mut pitch, width * channels, 2, 16,),
+            cust_raw::cudaError_enum::CUDA_SUCCESS,
+        );
+        assert_eq!(
+            cust_raw::cuMemFree_v2(ptr),
+            cust_raw::cudaError_enum::CUDA_SUCCESS,
+        );
+    }
+
+    pitch
+}
+
 fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaImage> {
     let sample = appsink.pull_sample().unwrap();
 
@@ -15,7 +32,6 @@ fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaIm
     let mem = unsafe { &*(gst_mem.as_ptr() as *const gst_cuda_sys::memory::GstCudaMemory) };
     let width = mem.alloc_params.info.width as usize;
     let height = mem.alloc_params.info.height as usize;
-    let pitch = ((width * channels) as f32 / 512.).ceil() as usize * 512;
 
     unsafe {
         let gst_cuda_context = &*(*mem.context).r#priv;
@@ -25,6 +41,8 @@ fn pull_cuda_image(appsink: &gst_app::AppSink, channels: usize) -> Option<CudaIm
             cust_raw::cuCtxPushCurrent_v2(gst_cuda_context.context),
             cust_raw::cudaError_enum::CUDA_SUCCESS
         );
+
+        let pitch = get_cuda_pitch(width, channels);
 
         // copy image to cuda image
         let img = CudaImage::copy_from_cuda_ptr(
