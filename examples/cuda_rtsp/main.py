@@ -4,7 +4,7 @@ from vision_stream.cuda import CudaRtspSource
 
 
 def main(rtsp_path: str):
-    cap = CudaRtspSource(rtsp_path)
+    cap = CudaRtspSource(rtsp_path, latency=2000)
 
     # Read until video is completed
     while True:

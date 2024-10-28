@@ -4,7 +4,7 @@ from vision_stream.deepstream import NvRtspSource
 
 
 def main(rtsp_path: str):
-    cap = NvRtspSource(rtsp_path)
+    cap = NvRtspSource(rtsp_path, latency=2000)
 
     # Read until video is completed
     while True:

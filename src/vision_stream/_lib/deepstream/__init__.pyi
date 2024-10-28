@@ -9,6 +9,7 @@ class NvRtspSource:
         uri: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        latency: Optional[int] = None,
     ) -> None: ...
 
     def read(self) -> Optional[CudaImage]: ...

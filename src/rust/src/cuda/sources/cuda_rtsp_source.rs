@@ -74,11 +74,16 @@ pub struct CudaRtspSource {
 #[pymethods]
 impl CudaRtspSource {
     #[new]
-    pub fn new(uri: &str, username: Option<&str>, password: Option<&str>) -> Result<Self, Error> {
+    pub fn new(
+        uri: &str,
+        username: Option<&str>,
+        password: Option<&str>,
+        latency: Option<u32>,
+    ) -> Result<Self, Error> {
         let pipeline = Pipeline::new(uri);
 
         // crate pieline elements
-        let rtspbin = RtspBin::new(uri, username, password)?;
+        let rtspbin = RtspBin::new(uri, username, password, latency)?;
         let videoconvert = gst::ElementFactory::make("cudaconvert")
             .build()
             .map_err(|_| GstMissingElementError("cudaconvert"))?;

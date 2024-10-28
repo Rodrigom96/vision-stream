@@ -10,11 +10,13 @@ class NvRtspSource:
         uri: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        latency: Optional[int] = None,
     ) -> None:
         self._source = NvRtspSourceRs(
             uri,
             username=username,
             password=password,
+            latency=latency,
         )
 
     def read(self) -> Optional[CudaImage]:

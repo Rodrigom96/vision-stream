@@ -60,7 +60,12 @@ pub struct RtspBin {
 }
 
 impl RtspBin {
-    pub fn new(uri: &str, username: Option<&str>, password: Option<&str>) -> Result<Self, Error> {
+    pub fn new(
+        uri: &str,
+        username: Option<&str>,
+        password: Option<&str>,
+        latency: Option<u32>,
+    ) -> Result<Self, Error> {
         let bin = gst::Bin::new();
         let connection_manager = Arc::new(BinConectionManager::new(&bin));
 
@@ -76,8 +81,10 @@ impl RtspBin {
 
         // config rtsp src
         rtspsrc.set_property("location", uri);
-        rtspsrc.set_property("latency", 100_u32);
-        rtspsrc.set_property("drop-on-latency", true);
+        if let Some(latency) = latency {
+            rtspsrc.set_property("latency", latency);
+            rtspsrc.set_property("drop-on-latency", true);
+        }
         if let Some(username) = username {
             rtspsrc.set_property("user-id", username);
         }

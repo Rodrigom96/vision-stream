@@ -27,6 +27,7 @@ class CudaRtspSource:
         uri: str,
         username: Optional[str] = None,
         password: Optional[str] = None,
+        latency: Optional[int] = None,
     ) -> None:
         self._source = CudaRtspSourceRs(
             uri,
