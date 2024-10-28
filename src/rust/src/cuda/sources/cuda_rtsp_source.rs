@@ -86,9 +86,9 @@ impl CudaRtspSource {
             .build()
             .map_err(|_| GstMissingElementError("capsfilter"))?;
         let appsink = gst_app::AppSink::builder()
-            .max_buffers(1)
+            .max_buffers(0)
             .drop(true)
-            .sync(false)
+            .sync(true)
             .build();
 
         // config capsfilter
